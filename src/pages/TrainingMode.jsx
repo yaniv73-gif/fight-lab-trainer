@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/AuthContext'
 import { CATEGORIES } from '../lib/constants'
-import { ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle2, X, ExternalLink } from 'lucide-react'
 
 export default function TrainingMode() {
   const { id } = useParams()
@@ -87,6 +87,14 @@ export default function TrainingMode() {
               <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4">
                 <p className="text-xl font-semibold">{item.text}</p>
                 {item.notes && <p className="text-gray-400 text-sm mt-2">{item.notes}</p>}
+                {item.imageUrl && (
+                  <img src={item.imageUrl} alt="" className="mt-3 rounded-xl max-h-48 object-cover w-full" onError={e => e.target.style.display='none'} />
+                )}
+                {item.videoUrl && (
+                  <a href={item.videoUrl} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center gap-2 text-[#c7171a] text-sm font-medium hover:underline">
+                    <ExternalLink size={14} /> Watch video
+                  </a>
+                )}
               </div>
             ))}
           </div>

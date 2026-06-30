@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { CATEGORIES } from '../lib/constants'
-import { ArrowLeft, Play, Pencil } from 'lucide-react'
+import { ArrowLeft, Play, Pencil, ExternalLink } from 'lucide-react'
 
 export default function SessionDetail() {
   const { id } = useParams()
@@ -41,10 +41,19 @@ export default function SessionDetail() {
                 <div key={j} className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
                   <p className="font-medium">{item.text}</p>
                   {item.notes && <p className="text-gray-500 text-sm mt-1">{item.notes}</p>}
+                  {item.imageUrl && (
+                    <img src={item.imageUrl} alt="" className="mt-2 rounded-lg max-h-40 object-cover w-full" onError={e => e.target.style.display='none'} />
+                  )}
+                  {item.videoUrl && (
+                    <a href={item.videoUrl} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-1.5 text-[#c7171a] text-sm hover:underline">
+                      <ExternalLink size={13} /> Watch video
+                    </a>
+                  )}
                 </div>
               )) : (
                 <p className="text-gray-700 text-sm">No items</p>
               )}
+
             </div>
           </div>
         ))}
