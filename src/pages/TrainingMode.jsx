@@ -3,30 +3,85 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useUser } from '../lib/AuthContext'
 import { CATEGORIES } from '../lib/constants'
-import { ChevronLeft, ChevronRight, CheckCircle2, X, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle2, X, ExternalLink, ListOrdered } from 'lucide-react'
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical } from 'lucide-react'
+
+function SortableQueueItem({ id, section, index, isCurrent, onClick }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition ${
+        isDragging ? 'opacity-40' : ''
+      } ${isCurrent ? 'border-[#c7171a] bg-[#c7171a]/10' : 'border-gray-800 bg-gray-900'}`}
+    >
+      <div {...attributes} {...listeners} className="text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing touch-none">
+        <GripVertical size={16} />
+      </div>
+      <button className="flex-1 text-left" onClick={onClick}>
+        <span className={`text-sm font-medium ${isCurrent ? 'text-[#c7171a]' : 'text-gray-300'}`}>
+          {index + 1}. {section.title}
+        </span>
+        {section.items?.length > 0 && (
+          <span className="text-gray-600 text-xs ml-2">{section.items.length} items</span>
+        )}
+      </button>
+    </div>
+  )
+}
 
 export default function TrainingMode() {
   const { id } = useParams()
   const user = useUser()
   const navigate = useNavigate()
   const [session, setSession] = useState(null)
+  const [sections, setSections] = useState([])
   const [sectionIdx, setSectionIdx] = useState(0)
   const [done, setDone] = useState(false)
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [queueOpen, setQueueOpen] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+  )
 
   useEffect(() => {
-    supabase.from('sessions').select('*').eq('id', id).single().then(({ data }) => setSession(data))
+    supabase.from('sessions').select('*').eq('id', id).single().then(({ data }) => {
+      setSession(data)
+      setSections(data?.sections || [])
+    })
   }, [id])
 
   if (!session) {
     return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-500">Loading...</div>
   }
 
-  const sections = session.sections || []
   const current = sections[sectionIdx]
   const cat = CATEGORIES.find(c => c.id === session.category)
   const isLast = sectionIdx === sections.length - 1
+  const sectionIds = sections.map((_, i) => `q-${i}`)
+
+  function handleQueueDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return
+    const oldIndex = sectionIds.indexOf(active.id)
+    const newIndex = sectionIds.indexOf(over.id)
+    const newSections = arrayMove(sections, oldIndex, newIndex)
+    setSections(newSections)
+    // keep current section focused after reorder
+    const currentSection = sections[sectionIdx]
+    setSectionIdx(newSections.indexOf(currentSection))
+  }
 
   async function finishSession() {
     setSaving(true)
@@ -63,7 +118,12 @@ export default function TrainingMode() {
           <X size={24} />
         </button>
         <div className="text-sm font-medium text-gray-300">{session.title}</div>
-        <div className="text-sm text-gray-500">{sectionIdx + 1} / {sections.length}</div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{sectionIdx + 1} / {sections.length}</span>
+          <button onClick={() => setQueueOpen(o => !o)} className={`transition ${queueOpen ? 'text-[#c7171a]' : 'text-gray-500 hover:text-white'}`}>
+            <ListOrdered size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -73,6 +133,29 @@ export default function TrainingMode() {
           style={{ width: `${((sectionIdx + 1) / sections.length) * 100}%`, background: cat?.color ?? '#c7171a' }}
         />
       </div>
+
+      {/* Queue panel */}
+      {queueOpen && (
+        <div className="border-b border-gray-800 bg-gray-950 px-4 py-3 max-w-xl mx-auto w-full">
+          <p className="text-xs text-gray-600 uppercase tracking-widest font-semibold mb-2">Section order — drag to reorder</p>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleQueueDragEnd}>
+            <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-1.5">
+                {sections.map((sec, i) => (
+                  <SortableQueueItem
+                    key={sectionIds[i]}
+                    id={sectionIds[i]}
+                    section={sec}
+                    index={i}
+                    isCurrent={i === sectionIdx}
+                    onClick={() => { setSectionIdx(i); setQueueOpen(false) }}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex-1 flex flex-col px-6 py-8 max-w-xl mx-auto w-full">
@@ -86,7 +169,7 @@ export default function TrainingMode() {
             {current.items.map((item, i) => (
               <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4">
                 <p className="text-xl font-semibold">{item.text}</p>
-                {item.notes && <p className="text-gray-400 text-sm mt-2">{item.notes}</p>}
+                {item.notes && <p className="text-gray-400 text-sm mt-2 whitespace-pre-line">{item.notes}</p>}
                 {item.imageUrl && (
                   <img src={item.imageUrl} alt="" className="mt-3 rounded-xl max-h-48 object-cover w-full" onError={e => e.target.style.display='none'} />
                 )}
@@ -104,7 +187,6 @@ export default function TrainingMode() {
           </div>
         )}
 
-        {/* Notes (last section only) */}
         {isLast && (
           <div className="mt-6">
             <textarea

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { CATEGORIES } from '../lib/constants'
 import { ArrowLeft, Play, Pencil, ExternalLink } from 'lucide-react'
+import Layout from '../components/Layout'
 
 export default function SessionDetail() {
   const { id } = useParams()
@@ -18,6 +19,7 @@ export default function SessionDetail() {
   const cat = CATEGORIES.find(c => c.id === session.category)
 
   return (
+    <Layout>
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="bg-gray-900 border-b border-gray-800 px-4 py-4 flex items-center gap-3 sticky top-0 z-10">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white"><ArrowLeft size={20} /></button>
@@ -68,5 +70,6 @@ export default function SessionDetail() {
         </div>
       </div>
     </div>
+    </Layout>
   )
 }
